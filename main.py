@@ -43,8 +43,16 @@ def create_require_folder():
 
 
 def clean_folder():
-    shutil.rmtree(os.path.join(ROOT_DIR, 'videos/input_frames'))
-    shutil.rmtree(os.path.join(ROOT_DIR, 'videos/u2net_results'))
+    try:
+        shutil.rmtree(os.path.join(ROOT_DIR, 'videos/input_frames'))
+        shutil.rmtree(os.path.join(ROOT_DIR, 'videos/u2net_preds'))
+    except Exception as e:
+        print(f'Folder not existed: {e}')
+    
+    try:
+        shutil.rmtree(os.path.join(ROOT_DIR, 'videos/u2net_preds'))
+    except Exception as e:
+        print(f'Folder not existed: {e}')
 
 
 def load_model(model_path, model_name='u2net'):
@@ -66,16 +74,19 @@ def get_frames_from_video(video_path, input_frames_dir):
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     count = 0
+    sz = (0, 0)
     while cap.isOpened():
         ret, frame = cap.read()
         # if frame is read correctly ret is True
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
+        ht, wd, _ = frame.shape
+        sz=(wd,ht)
         cv2.imwrite(input_frames_dir + '/input' + str(count) + '.png', frame)
         count += 1
     cap.release()
-    return fps
+    return fps, sz
 
 def infer(model_path, input_frames_dir, pred_output_dir, model_name='u2net'):
     img_name_list = [os.path.join(input_frames_dir, image_name) for image_name in os.listdir(input_frames_dir)]
@@ -95,6 +106,7 @@ def infer(model_path, input_frames_dir, pred_output_dir, model_name='u2net'):
 
     # Inference for each image 
     for i, data_test in enumerate(salobj_dataloader):
+        print(f'handling {img_name_list[i]}')
         inputs_test = data_test['image']
         inputs_test = inputs_test.type(torch.FloatTensor)
 
@@ -115,37 +127,30 @@ def infer(model_path, input_frames_dir, pred_output_dir, model_name='u2net'):
         save_output(img_name_list[i], i, pred, pred_output_dir)
 
 
-def gen_output_video(input_frames_dir, pred_result_dir, output_video_path, fps):
-    img_list = []
+def gen_output_video(input_frames_dir, pred_result_dir, output_video_path, fps, sz):
+    #CHANGE OUTPUT FILE EXTENSION HERE - BY DEFAULT: *.mp4
+    outv=cv2.VideoWriter(output_video_path,cv2.VideoWriter_fourcc(*'mp4v'), fps, sz)
     assert len(os.listdir(input_frames_dir)) == len(os.listdir(pred_result_dir))
     for i in range(len(os.listdir(input_frames_dir))):
         u2netresult=cv2.imread(os.path.join(pred_result_dir, f'pred{i}.png'))
         original=cv2.imread(os.path.join(input_frames_dir, f'input{i}.png'))
-
         subimage=cv2.subtract(u2netresult,original)
         mask = np.where(subimage==0, subimage, 1)
         final_img = original * mask
-
-        ht, wd, _ = final_img.shape
-        sz=(wd,ht)
-        img_list.append(final_img)
-
-        #CHANGE OUTPUT FILE EXTENSION HERE - BY DEFAULT: *.mp4
-        outv=cv2.VideoWriter(output_video_path,cv2.VideoWriter_fourcc(*'MP4V'), fps, sz)
-        for i in img_list:
-            outv.write(i)
-        outv.release()
+        outv.write(final_img)
+    outv.release()
 
 if __name__ == '__main__':
+    clean_folder()
     input_frames_dir, pred_frames_dir = create_require_folder()
     model_path = os.path.join(ROOT_DIR, 'saved_models/u2net.pth')
     video_path = os.path.join(ROOT_DIR, 'videos/input/input.mp4')
-    model_path = os.path.join(ROOT_DIR, 'videos/input/input.mp4')
     output_video_path = os.path.join(ROOT_DIR, 'videos/output/output.mp4')
 
     print('getting input frames...')
-    fps = get_frames_from_video(video_path, input_frames_dir)
+    fps, sz = get_frames_from_video(video_path, input_frames_dir)
     print('infering...')
     infer(model_path, input_frames_dir, pred_frames_dir)
-    print('genning video output...')_
-    gen_output_video(input_frames_dir, pred_frames_dir, output_video_path, fps)
+    print('genning video output...')
+    gen_output_video(input_frames_dir, pred_frames_dir, output_video_path, fps, sz)
+    clean_folder()
