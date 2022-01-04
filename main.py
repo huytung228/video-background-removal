@@ -145,19 +145,26 @@ def gen_output_video_with_background(input_frames_dir, pred_result_dir, output_v
     #CHANGE OUTPUT FILE EXTENSION HERE - BY DEFAULT: *.mp4
     outv=cv2.VideoWriter(output_video_path,cv2.VideoWriter_fourcc(*'mp4v'), fps, sz)
     assert len(os.listdir(input_frames_dir)) == len(os.listdir(pred_result_dir))
+    no_frames = len(os.listdir(input_frames_dir))
 
-    bg_image = cv2.imread(os.path.join(ROOT_DIR, 'backgrounds\background.jpg'))
-    bg_image = cv2.cvtColor(bg_image, cv2.COLOR_BGR2RGB)
-    bg_image = cv2.resize(bg_image, sz)
+    bg_images = []
+    for bg in os.listdir(os.path.join(ROOT_DIR, 'backgrounds')):
+        img_path = os.path.join(ROOT_DIR, 'backgrounds', bg)
+        bg_image = cv2.imread(img_path)
+        bg_image = cv2.cvtColor(bg_image, cv2.COLOR_BGR2RGB)
+        bg_image = cv2.resize(bg_image, sz)
+        bg_images.append(bg_image)
+    
+    switch_bg_frame = no_frames // len(bg_images)
 
-    for i in range(len(os.listdir(input_frames_dir))):
+    for i in range(no_frames):
         u2netresult=cv2.imread(os.path.join(pred_result_dir, f'pred{i}.png'))
         original=cv2.imread(os.path.join(input_frames_dir, f'input{i}.png'))
         subimage=cv2.subtract(u2netresult,original)
         mask = np.where(subimage==0, subimage, 1)
         segment_img = original * mask
 
-        final_img = np.where(mask==0, bg_image, segment_img)
+        final_img = np.where(mask==0, bg_images[no_frames//switch_bg_frame], segment_img)
         outv.write(final_img)
     outv.release()
 
@@ -173,5 +180,5 @@ if __name__ == '__main__':
     print('infering...')
     infer(model_path, input_frames_dir, pred_frames_dir)
     print('genning video output...')
-    gen_output_video(input_frames_dir, pred_frames_dir, output_video_path, fps, sz)
+    gen_output_video_with_background(input_frames_dir, pred_frames_dir, output_video_path, fps, sz)
     clean_folder()
