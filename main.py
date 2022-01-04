@@ -164,7 +164,7 @@ def gen_output_video_with_background(input_frames_dir, pred_result_dir, output_v
         mask = np.where(subimage==0, subimage, 1)
         segment_img = original * mask
 
-        final_img = np.where(mask==0, bg_images[no_frames//switch_bg_frame], segment_img)
+        final_img = np.where(mask==0, bg_images[i//switch_bg_frame-1 if i%switch_bg_frame==0 and i!=0 else i//switch_bg_frame], segment_img)
         outv.write(final_img)
     outv.release()
 
