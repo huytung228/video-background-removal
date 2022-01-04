@@ -140,6 +140,27 @@ def gen_output_video(input_frames_dir, pred_result_dir, output_video_path, fps, 
         outv.write(final_img)
     outv.release()
 
+
+def gen_output_video_with_background(input_frames_dir, pred_result_dir, output_video_path, fps, sz):
+    #CHANGE OUTPUT FILE EXTENSION HERE - BY DEFAULT: *.mp4
+    outv=cv2.VideoWriter(output_video_path,cv2.VideoWriter_fourcc(*'mp4v'), fps, sz)
+    assert len(os.listdir(input_frames_dir)) == len(os.listdir(pred_result_dir))
+
+    bg_image = cv2.imread(os.path.join(ROOT_DIR, 'backgrounds\background.jpg'))
+    bg_image = cv2.cvtColor(bg_image, cv2.COLOR_BGR2RGB)
+    bg_image = cv2.resize(bg_image, sz)
+
+    for i in range(len(os.listdir(input_frames_dir))):
+        u2netresult=cv2.imread(os.path.join(pred_result_dir, f'pred{i}.png'))
+        original=cv2.imread(os.path.join(input_frames_dir, f'input{i}.png'))
+        subimage=cv2.subtract(u2netresult,original)
+        mask = np.where(subimage==0, subimage, 1)
+        segment_img = original * mask
+
+        final_img = np.where(mask==0, bg_image, segment_img)
+        outv.write(final_img)
+    outv.release()
+
 if __name__ == '__main__':
     clean_folder()
     input_frames_dir, pred_frames_dir = create_require_folder()
