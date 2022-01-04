@@ -138,11 +138,14 @@ def gen_output_video(input_frames_dir, pred_result_dir, output_video_path, fps):
 
 if __name__ == '__main__':
     input_frames_dir, pred_frames_dir = create_require_folder()
-    model_path = os.path.join(ROOT_DIR, 'saved_models/u2net/u2net.pth')
+    model_path = os.path.join(ROOT_DIR, 'saved_models/u2net.pth')
     video_path = os.path.join(ROOT_DIR, 'videos/input/input.mp4')
     model_path = os.path.join(ROOT_DIR, 'videos/input/input.mp4')
     output_video_path = os.path.join(ROOT_DIR, 'videos/output/output.mp4')
 
+    print('getting input frames...')
     fps = get_frames_from_video(video_path, input_frames_dir)
+    print('infering...')
     infer(model_path, input_frames_dir, pred_frames_dir)
+    print('genning video output...')_
     gen_output_video(input_frames_dir, pred_frames_dir, output_video_path, fps)
